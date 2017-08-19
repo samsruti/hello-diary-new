@@ -1,5 +1,5 @@
 {
-  "name": "hello-diary",
+  "name": "hello-diary-app",
   "description": "Your personal daily journal",
   "version": "0.0.1",
   "private": true,
@@ -23,8 +23,8 @@
     "firebase-functions": "^0.5.7",
     "google-auth-library": "^0.10.0",
     "googleapis": "^20.1.0",
-    "sprintf-js": "^1.1.1",
-    "xml2js": "^0.4.17"
+    "https": "^1.0.0",
+    "sprintf-js": "^1.1.1"
   },
   "devDependencies": {
     "eslint": "^3.19.0",

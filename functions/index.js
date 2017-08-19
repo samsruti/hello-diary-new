@@ -37,7 +37,7 @@ const firebase = require('firebase-admin');
 firebase.initializeApp(functions.config().firebase);
 
 const allUsers = firebase.database().ref('/users');
-
+const https = require("https");
 const strings = require('./strings');
 
 process.env.DEBUG = 'actions-on-google:*';
@@ -62,10 +62,16 @@ const ActionsNewUser = {
 };
 
 const ActionsNormalUser = {
-  START_APP_YES: 'start_app.yes',
   START_APP_YES_FEATURE_SELECT: 'feature.option.select',
-  START_APP_NO: 'start_app.no',
-  START_APP_LATER: 'start_app.later'
+  START_APP_YES: 'start.app.yes',
+  START_APP_NO: 'start.app.no',
+  START_APP_LATER: 'start.app.later',
+  GET_TITLE_OF_THE_DAY: 'get.TitleOfTheDay',
+  ASK_ABOUT_THE_DAY: 'ask.about.day.initial',
+  ASK_CONFESSION: 'ask.confession',
+  ASK_GOOGLE_CALENDAR_EVENTS: 'ask.google.calendar',
+  ASK_CLOUD_PHOTOS: 'ask.google.photos',
+  ASK_FINAL_CONTENT_ABOUT_THE_DAY: 'ask.final.content'
 
 };
 /** API.AI Parameters {@link https://api.ai/docs/actions-and-parameters#parameters} */
@@ -73,9 +79,17 @@ const Parameters = {
  // CATEGORY: 'category'
 };
 
+const IntentNames = {
+  START_APP: {
+    YES: 'start_app - yes',
+    NO: 'start_app - no',
+    LATER: 'start_app - later'
+  }
+};
+
 const WriteDiary = {
   WRITE_DIARY: 'WRITE_DIARY',
-  SYNONYMS: ['write', 'write down', 'write now', 'create', 'create new memories','Create New Memories'],
+  SYNONYMS: ['write', 'write down', 'write now', 'create', 'create new memories', 'Create New Memories'],
   TITLE: 'Create New Memories',
   DESCRIPTION: 'You can write your daily entries.',
   IMAGE_URL: 'http://example.com/image.jpg'
@@ -83,7 +97,7 @@ const WriteDiary = {
 
 const ReadDiary = {
   READ_DIARY: 'READ_DIARY',
-  SYNONYMS: ['read', 'read diary', 'read now', 'recall', 'recall your memories'],
+  SYNONYMS: ['read', 'read diary', 'read now', 'recall', 'recall your memories', 'recall memoriess'],
   TITLE: 'Recall Your Memories',
   DESCRIPTION: 'You can read previous entries.',
   IMAGE_URL: 'http://example.com/image.jpg'
@@ -109,7 +123,7 @@ const Lifespans = {
  * @param {ApiAiApp} app ApiAiApp instance
  * @return {void}
  */
- const unhandledDeepLinks = app => {
+const unhandledDeepLinks = app => {
  	/** @type {string} */
  	const rawInput = app.getRawInput();
  	const response = sprintf(strings.general.unhandled, rawInput);
@@ -124,9 +138,9 @@ const Lifespans = {
  	.addSuggestions(suggestions);
 
  	app.ask(richResponse, strings.general.noInputs);
- };
+};
 
- function writeNewUser (userId, fullName, email, gender, age) {
+function writeNewUser (userId, fullName, email, gender, age) {
  	firebase.database().ref('users/' + userId).set({
  		userid: userId,
  		name: fullName,
@@ -134,9 +148,9 @@ const Lifespans = {
  		gender: gender,
  		age: age
  	});
- }
+}
 
- function userDetails () {
+function userDetails () {
   var userId = firebase.auth().currentUser.uid;
   return firebase.database().ref('/users/' + userId).once('value').then(function (snapshot) {
     var username = snapshot.val().username;
@@ -166,7 +180,7 @@ function getUserName () {
  *
  * @return {boolean} True if the user is a previous user. False if first time user.
  */
- function isPreviousUser (userId) {
+function isPreviousUser (userId) {
   return new Promise((resolve, reject) => {
     firebase.database().ref('users/' + encodeAsFirebaseKey(userId))
     .once('value', (data) => {
@@ -182,11 +196,17 @@ function getUserName () {
   });
 }
 
+const SIGN_IN = 'sign.in';
 // Calling code (intent handler)
+
+var appStart = 0;
 
 function welcomeNormalUser (app) {
   app.setContext('start_app-followup');
+
   app.ask('Hello again, I am Max Your personal daily diary. Welcome back again! Are you ready to start?');
+  app.askForSignIn();
+
   // firebase.database().ref('users/test').set({
   //   name: 'sam',
   //   location: {
@@ -225,18 +245,18 @@ function permissionGranted (app) {
         // address:app.getDeviceLocation().address,
         // zipCode:app.getDeviceLocation().zipCode
 
-        app.ask(app.buildRichResponse()
+    app.ask(app.buildRichResponse()
          .addSimpleResponse({speech: 'At which time should you use to write your personal diary?',
            displayText: 'At which time should you use to write your personal diary?'})
          .addSuggestions(['8.00pm', '9.00pm', '10.00pm', '11.00pm', '12 midnight'])
          );
-      } else {
-        app.tell('Ok Bye');
-      }
-    }
+  } else {
+    app.tell('Ok Bye');
+  }
+}
 
-    function timePreferenceSet (app) {
-      var writingTime = app.getContextArgument('ask-time-preferences', 'writingTime');
+function timePreferenceSet (app) {
+  var writingTime = app.getContextArgument('ask-time-preferences', 'writingTime');
   // const number = app.getContextArgument(OUT_CONTEXT, NUMBER_ARG);
   app.setContext('start_app-followup');
   console.log('CONSOLE:\r' + writingTime.value);
@@ -251,9 +271,11 @@ function permissionGranted (app) {
 // .addSuggestionLink('Suggestion Link', 'https://assistant.google.com/')
 }
 
-function startApp (app) {
- app.askWithCarousel(app.buildRichResponse()
-  .addSimpleResponse('Alright! Here are a few things that I can do for you. What you want me to do?')
+function startAppYes (app) {
+  console.log(app.getSignInStatus());
+  let accessToken = app.getUser().accessToken;
+  app.askWithCarousel(app.buildRichResponse()
+  .addSimpleResponse(' Alright Logged In! Here are a few things that I can do for you. What you want me to do?')
   .addSuggestions(
     ['Recall Memories', 'Create Memories', 'Set Reminder']),
     // Build a carousel
@@ -263,20 +285,29 @@ function startApp (app) {
       ReadDiary.SYNONYMS)
     .setTitle(ReadDiary.TITLE)
     .setDescription(ReadDiary.DESCRIPTION)
-    .setImage(ReadDiary.IMAGE_URL,ReadDiary.TITLE))
+    .setImage(ReadDiary.IMAGE_URL, ReadDiary.TITLE))
     // Add the second item to the carousel
     .addItems(app.buildOptionItem(WriteDiary.WRITE_DIARY,
       WriteDiary.SYNONYMS)
     .setTitle(WriteDiary.TITLE)
     .setDescription(WriteDiary.DESCRIPTION)
-    .setImage(WriteDiary.IMAGE_URL,WriteDiary.TITLE))
+    .setImage(WriteDiary.IMAGE_URL, WriteDiary.TITLE))
     // Add third item to the carousel
     .addItems(app.buildOptionItem(SetReminder.SET_REMINDER,
       SetReminder.SYNONYMS)
     .setTitle(SetReminder.TITLE)
     .setDescription(SetReminder.DESCRIPTION)
-    .setImage(SetReminder.IMAGE_URL,SetReminder.TITLE))
-    );  
+    .setImage(SetReminder.IMAGE_URL, SetReminder.TITLE))
+    );
+
+}
+
+function startAppNo (app) {
+  app.ask('App not gonna start');
+}
+
+function startAppLater (app) {
+  app.ask('App not gonna start now. But later');
 }
 
 function itemSelectedStartApp (app) {
@@ -287,12 +318,39 @@ function itemSelectedStartApp (app) {
   } else if (param === ReadDiary.READ_DIARY) {
     app.ask('Read Diary Selected');
   } else if (param === WriteDiary.WRITE_DIARY) {
-    app.ask('Write Diary Selected');
+    app.ask('What title do you want to give for today?\
+     Something like: “First Day in College” or like “Dragon Die”');
+    app.setContext("title-process");
+    // Todo: dynamic responses for the titles.
   } else if (param === SetReminder.SET_REMINDER) {
     app.ask('Set Reminder selected');
   } else {
     app.ask('You selected an unknown item from the list or carousel');
   }
+}
+
+function getTitleOfTheDay (app) {
+ 
+  // No third party module required: https is part of the Node.js API
+  
+  const url =
+    "https://maps.googleapis.com/maps/api/geocode/json?address=Florence";
+  https.get(url, res => {
+    res.setEncoding("utf8");
+    let body = "";
+    res.on("data", data => {
+      body += data;
+    });
+    res.on("end", () => {
+      body = JSON.parse(body);
+      console.log(
+        `City: ${body.results[0].formatted_address} -`,
+        `Latitude: ${body.results[0].geometry.location.lat} -`,
+        `Longitude: ${body.results[0].geometry.location.lng}`
+      );
+    });
+  });
+  app.ask('COLORS');
 }
 
 /** @type {Map<string, function(ApiAiApp): void>} */
@@ -309,10 +367,14 @@ if (newUser) {
 
   	// actionMap.set(ActionsNewUser.ASK_TO_START_DIARY_NOW, askToStartDiaryNow); // are you gonna write today? or we can start from tomorrow
   	// startDiary(app);
-  } else {
-    actionMap.set(ActionsNewUser.ACTION_WELCOME, welcomeNormalUser);
-	// startDiary(app);
-  actionMap.set(ActionsNormalUser.START_APP_YES, startApp);
+} else {
+  actionMap.set(ActionsNewUser.ACTION_WELCOME, welcomeNormalUser);
+  // console.log("ActionMap:"+actionMap);
+
+  actionMap.set(ActionsNormalUser.START_APP_YES, startAppYes);
+  actionMap.set(ActionsNormalUser.START_APP_NO, startAppNo);
+  actionMap.set(ActionsNormalUser.START_APP_LATER, startAppLater);
+  actionMap.set(ActionsNormalUser.GET_TITLE_OF_THE_DAY, getTitleOfTheDay);
   actionMap.set(ActionsNormalUser.START_APP_YES_FEATURE_SELECT, itemSelectedStartApp);
 }
 
@@ -321,7 +383,7 @@ if (newUser) {
  * @param {Request} request An Express like Request object of the HTTP request
  * @param {Response} response An Express like Response object to send back data
  */
- const helloDiary = functions.https.onRequest((request, response) => {
+const helloDiary = functions.https.onRequest((request, response) => {
  	const app = new ApiAiApp({
  		request,
  		response
@@ -329,8 +391,8 @@ if (newUser) {
  	console.log(`Request headers: ${JSON.stringify(request.headers)}`);
  	console.log(`Request body: ${JSON.stringify(request.body)}`);
  	app.handleRequest(actionMap);
- });
+});
 
- module.exports = {
+module.exports = {
  	helloDiary
- };
+};
