@@ -18,6 +18,8 @@ const functions = require('firebase-functions');
 const { sprintf } = require('sprintf-js');
 
 const strings = require('./strings');
+var request = require('request');
+var unirest = require('unirest');
 
 process.env.DEBUG = 'actions-on-google:*';
 
@@ -145,17 +147,16 @@ function textSentimentAnalysis (sentimentjson) {
   var overallSentiment = 0;
 
   let maxSentiment = sentimentMaxMin(pos, neg, neutral);
-  if (maxSentiment == pos) {
+  if (maxSentiment === pos) {
     overallSentiment = 1;
-  } else if (maxSentiment == neg) {
+  } else if (maxSentiment === neg) {
     overallSentiment = -1;
-  } else if (maxSentiment == neutral) {
+  } else if (maxSentiment === neutral) {
     overallSentiment = 0;
   }
 
   return overallSentiment;
 }
-
 
 const welcomeFirstTimeUser = app => {
   if (app.hasSurfaceCapability(app.SurfaceCapabilities.SCREEN_OUTPUT)) {
@@ -259,7 +260,7 @@ const howTodayCouldBeImproved = app => {
   let input = app.getRawInput();
   app.setContext('give-title');
   app.ask(input + ': What title you want to give today?');
-}
+};
 
 const journalTitle = app => {
   app.setContext('grateful-user');
@@ -273,22 +274,22 @@ const journalTitle = app => {
     let listVal = JSON.parse(result.body);
     var overallSentiment = textSentimentAnalysis(listVal);
     let response = 'Title:' + input;
-    if (overallSentiment == 0) {
+    if (overallSentiment === 0) {
       response = response + 'Neutral statements';
-    } else if (overallSentiment == 1) {
-      response =response + 'Positive statements';
-    } else if (overallSentiment == -1) {
+    } else if (overallSentiment === 1) {
+      response = response + 'Positive statements';
+    } else if (overallSentiment === -1) {
       response = response + 'Negative statements';
     }
 
-    app.ask("Title Sentiment: "+ response + ". What are you grateful for?");
+    app.ask('Title Sentiment: ' + response + '. What are you grateful for?');
   });
-}
+};
 
 const gratefulFor = app => {
   let input = app.getRawInput();
   app.ask(input + ': Tell me how you could have improved today?');
-}
+};
 
 /** @type {Map<string, function(ApiAiApp): void>} */
 const actionMap = new Map();
@@ -315,7 +316,6 @@ if (newUser) {
   actionMap.set(Actions.IMPROVE_TODAY, howTodayCouldBeImproved);
   actionMap.set(Actions.TITLE_OF_THE_DAY, journalTitle);
   actionMap.set(Actions.USER_GRATEFUL, gratefulFor);
-
 }
 
 /**
