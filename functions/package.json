@@ -18,13 +18,19 @@
   "dependencies": {
     "actions-on-google": "^1.0.0",
     "apiai": "^4.0.3",
+    "async-request": "^1.2.0",
     "deep-freeze": "0.0.1",
     "firebase-admin": "^4.2.1",
     "firebase-functions": "^0.5.7",
     "google-auth-library": "^0.10.0",
     "googleapis": "^20.1.0",
     "https": "^1.0.0",
-    "sprintf-js": "^1.1.1"
+    "picasa": "^1.0.6",
+    "request": "^2.81.0",
+    "request-promise": "^4.2.1",
+    "sprintf-js": "^1.1.1",
+    "sync-request": "^4.1.0",
+    "unirest": "^0.5.1"
   },
   "devDependencies": {
     "eslint": "^3.19.0",

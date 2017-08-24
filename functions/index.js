@@ -1,15 +1,3 @@
-// Copyright 2016, FitManBot Inc.
-// Samsruti Dash: sam.sipun@gmail.com
-// Licensed under the Apache License, Version 2.0 (the 'License');
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// http://www.apache.org/licenses/LICENSE-2.0
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an 'AS IS' BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 // Copyright 2016, Google, Inc.
 // Licensed under the Apache License, Version 2.0 (the 'License');
 // you may not use this file except in compliance with the License.
@@ -25,190 +13,170 @@
 
 'use strict';
 
-const {
-	ApiAiApp
-} = require('actions-on-google');
+const { ApiAiApp } = require('actions-on-google');
 const functions = require('firebase-functions');
-const {
-	sprintf
-} = require('sprintf-js');
+const { sprintf } = require('sprintf-js');
 
-const firebase = require('firebase-admin');
-firebase.initializeApp(functions.config().firebase);
-
-const allUsers = firebase.database().ref('/users');
-const https = require("https");
 const strings = require('./strings');
 
 process.env.DEBUG = 'actions-on-google:*';
 
-function encodeAsFirebaseKey (string) {
-  return string.replace(/%/g, '%25')
-  .replace(/\./g, '%2E')
-  .replace(/#/g, '%23')
-  .replace(/\$/g, '%24')
-  .replace(/\//g, '%2F')
-  .replace(/\[/g, '%5B')
-  .replace(/\]/g, '%5D');
-}
-
 /** API.AI Actions {@link https://api.ai/docs/actions-and-parameters#actions} */
-const ActionsNewUser = {
-  ACTION_WELCOME: 'input.welcome',
+const Actions = {
   UNRECOGNIZED_DEEP_LINK: 'deeplink.unknown',
-  PERMISSION_GRANTED: 'permission.granted',
-  REQUEST_NAME_PERMISSION: 'request.permission',
-  ASK_PREFERENCE_TIME_TRUE: 'ask-time-preferences.confirmed'
-};
-
-const ActionsNormalUser = {
-  START_APP_YES_FEATURE_SELECT: 'feature.option.select',
-  START_APP_YES: 'start.app.yes',
-  START_APP_NO: 'start.app.no',
-  START_APP_LATER: 'start.app.later',
-  GET_TITLE_OF_THE_DAY: 'get.TitleOfTheDay',
-  ASK_ABOUT_THE_DAY: 'ask.about.day.initial',
-  ASK_CONFESSION: 'ask.confession',
-  ASK_GOOGLE_CALENDAR_EVENTS: 'ask.google.calendar',
-  ASK_CLOUD_PHOTOS: 'ask.google.photos',
-  ASK_FINAL_CONTENT_ABOUT_THE_DAY: 'ask.final.content'
+  ACTION_WELCOME: 'input.welcome',
+  DISPLAY_FEATURES_CAROUSEL: 'display.features.carousel',
+  FEATURES_ITEM_SELECTED: 'features.item.selected',
+  APP_START_YES: 'start.app.yes',
+  APP_START_NO: 'start.app.no',
+  APP_START_LATER: 'start.app.later',
+  AMAZING_THINGS_HAPPENED_TODAY: 'amazing.things.happened',
+  WORST_THINGS_HAPPENED_TODAY: 'worst.things.happened',
+  IMPROVE_TODAY: 'improve.today',
+  TITLE_OF_THE_DAY: 'day.title',
+  USER_GRATEFUL: 'user.grateful'
 
 };
 /** API.AI Parameters {@link https://api.ai/docs/actions-and-parameters#parameters} */
 const Parameters = {
- // CATEGORY: 'category'
-};
-
-const IntentNames = {
-  START_APP: {
-    YES: 'start_app - yes',
-    NO: 'start_app - no',
-    LATER: 'start_app - later'
-  }
-};
-
-const WriteDiary = {
-  WRITE_DIARY: 'WRITE_DIARY',
-  SYNONYMS: ['write', 'write down', 'write now', 'create', 'create new memories', 'Create New Memories'],
-  TITLE: 'Create New Memories',
-  DESCRIPTION: 'You can write your daily entries.',
-  IMAGE_URL: 'http://example.com/image.jpg'
-};
-
-const ReadDiary = {
-  READ_DIARY: 'READ_DIARY',
-  SYNONYMS: ['read', 'read diary', 'read now', 'recall', 'recall your memories', 'recall memoriess'],
-  TITLE: 'Recall Your Memories',
-  DESCRIPTION: 'You can read previous entries.',
-  IMAGE_URL: 'http://example.com/image.jpg'
-};
-
-const SetReminder = {
-  SET_REMINDER: 'SET_REMINDER',
-  SYNONYMS: ['set', 'set reminder', 'set reminder now'],
-  TITLE: 'Set Reminder',
-  DESCRIPTION: 'You can allow me to make reminders from the content you just wrote.',
-  IMAGE_URL: 'http://example.com/image.jpg'
+  CATEGORY: 'category'
 };
 /** API.AI Contexts {@link https://api.ai/docs/contexts} */
-const Contexts = {};
+const Contexts = {
+
+};
 /** API.AI Context Lifespans {@link https://api.ai/docs/contexts#lifespan} */
 const Lifespans = {
   DEFAULT: 5,
   END: 0
 };
 
-/**
- * Greet the user and direct them to next turn
- * @param {ApiAiApp} app ApiAiApp instance
- * @return {void}
- */
-const unhandledDeepLinks = app => {
- 	/** @type {string} */
- 	const rawInput = app.getRawInput();
- 	const response = sprintf(strings.general.unhandled, rawInput);
- 	/** @type {boolean} */
- 	const screenOutput = app.hasSurfaceCapability(app.SurfaceCapabilities.SCREEN_OUTPUT);
- 	if (!screenOutput) {
- 		return app.ask(response, strings.general.noInputs);
- 	}
- 	const suggestions = Object.values(strings.categories).map(category => category.suggestion);
- 	const richResponse = app.buildRichResponse()
- 	.addSimpleResponse(response)
- 	.addSuggestions(suggestions);
-
- 	app.ask(richResponse, strings.general.noInputs);
+const WriteDiary = {
+  SELECTION_KEY: 'WRITE_DIARY',
+  SYNONYMS: ['write', 'write down', 'write now', 'create', 'create new memories', 'Create New Memories'],
+  TITLE: 'Create New Memories',
+  DESCRIPTION: 'You can write your daily entries.',
+  IMAGE_URL: 'https://developers.google.com/actions/images/badges' +
+  '/XPM_BADGING_GoogleAssistant_VER.png'
 };
 
-function writeNewUser (userId, fullName, email, gender, age) {
- 	firebase.database().ref('users/' + userId).set({
- 		userid: userId,
- 		name: fullName,
- 		email: email,
- 		gender: gender,
- 		age: age
- 	});
+const ReadDiary = {
+  SELECTION_KEY: 'READ_DIARY',
+  SYNONYMS: ['read', 'read diary', 'read now', 'recall', 'recall your memories', 'recall memoriess'],
+  TITLE: 'Recall Your Memories',
+  DESCRIPTION: 'You can read previous entries.',
+  IMAGE_URL: 'https://lh3.googleusercontent.com' +
+  '/Nu3a6F80WfixUqf_ec_vgXy_c0-0r4VLJRXjVFF_X_CIilEu8B9fT35qyTEj_PEsKw'
+};
+
+const SetReminder = {
+  SELECTION_KEY: 'SET_REMINDER',
+  SYNONYMS: ['set', 'set reminder', 'set reminder now', 'Set Reminder'],
+  TITLE: 'Set Reminder',
+  DESCRIPTION: 'You can allow me to make reminders from the content you just wrote.',
+  IMAGE_URL: 'https://allo.google.com/images/allo-logo.png'
+};
+
+/**
+ * @template T
+ * @param {Array<T>} array The array to get a random value from
+ */
+const getRandomValue = array => array[Math.floor(Math.random() * array.length)];
+
+/** @param {Array<string>} facts The array of facts to choose a fact from */
+const getRandomFact = facts => {
+  if (!facts.length) {
+    return null;
+  }
+  const fact = getRandomValue(facts);
+  // Delete the fact from the local data since we now already used it
+  facts.splice(facts.indexOf(fact), 1);
+  return fact;
+};
+
+/** @param {Array<string>} messages The messages to concat */
+const concat = messages => messages.map(message => message.trim()).join(' ');
+
+// Polyfill Object.values to get the values of the keys of an object
+if (!Object.values) {
+  Object.values = o => Object.keys(o).map(k => o[k]);
 }
 
-function userDetails () {
-  var userId = firebase.auth().currentUser.uid;
-  return firebase.database().ref('/users/' + userId).once('value').then(function (snapshot) {
-    var username = snapshot.val().username;
-  });
+const unhandledDeepLinks = app => {
+  /** @type {string} */
+  const rawInput = app.getRawInput();
+  const response = sprintf(strings.general.unhandled, rawInput);
+  /** @type {boolean} */
+  const screenOutput = app.hasSurfaceCapability(app.SurfaceCapabilities.SCREEN_OUTPUT);
+  if (!screenOutput) {
+    return app.ask(response, strings.general.noInputs);
+  }
+  const suggestions = Object.values(strings.categories).map(category => category.suggestion);
+  const richResponse = app.buildRichResponse()
+    .addSimpleResponse(response)
+    .addSuggestions(suggestions);
+
+  app.ask(richResponse, strings.general.noInputs);
+};
+
+function sentimentMaxMin (pos, neg, neutral) {
+  var max = 0,
+    min = 0;
+  if (pos > neutral) {
+    max = pos;
+    min = neutral;
+  } else {
+    max = neutral;
+    min = pos;
+  }
+
+  if (neg > max) {
+    max = neg;
+  } else if (neg < min) {
+    min = neg;
+  }
+  return max;
 }
 
-// Greet the user and direct them to next turn
+function textSentimentAnalysis (sentimentjson) {
+  var neg = sentimentjson.neg;
+  var pos = sentimentjson.pos;
+  var neutral = sentimentjson.mid;
+  var overallSentiment = 0;
+
+  let maxSentiment = sentimentMaxMin(pos, neg, neutral);
+  if (maxSentiment == pos) {
+    overallSentiment = 1;
+  } else if (maxSentiment == neg) {
+    overallSentiment = -1;
+  } else if (maxSentiment == neutral) {
+    overallSentiment = 0;
+  }
+
+  return overallSentiment;
+}
+
+
 const welcomeFirstTimeUser = app => {
-  app.setContext('');
   if (app.hasSurfaceCapability(app.SurfaceCapabilities.SCREEN_OUTPUT)) {
-    const requestPermissionContext = 'request-permission';
-    app.setContext(requestPermissionContext);
     app.ask(app.buildRichResponse()
-     .addSimpleResponse('Hello, I am Max Your personal daily diary. This is the first time. ')
-     );
+    .addSimpleResponse('Hello, I am Max Your personal daily diary. This is the first time.')
+    );
   } else {
     app.ask('Hello, I am Max Your personal daily diary. This is the first time.');
   }
 };
 
-function getUserName () {
-
-}
-
-/*
- * Returns true if given user has invoked this action before.
- *
- * @return {boolean} True if the user is a previous user. False if first time user.
- */
-function isPreviousUser (userId) {
-  return new Promise((resolve, reject) => {
-    firebase.database().ref('users/' + encodeAsFirebaseKey(userId))
-    .once('value', (data) => {
-      if (data && data.val()) {
-        resolve(true);
-      } else {
-        firebase.database().ref('users/' + encodeAsFirebaseKey(userId)).set(true);
-        resolve(false);
-      }
-    }, (error) => {
-      reject(error);
-    });
-  });
-}
-
-const SIGN_IN = 'sign.in';
-// Calling code (intent handler)
-
-var appStart = 0;
-
 function welcomeNormalUser (app) {
   app.setContext('start_app-followup');
-
-  app.ask('Hello again, I am Max Your personal daily diary. Welcome back again! Are you ready to start?');
-  app.askForSignIn();
+  app.ask(app.buildRichResponse()
+    .addSimpleResponse('Hello again, I am Max Your personal daily diary. Welcome back again! Are you ready to start?')
+    .addSuggestions(['Yes', 'No', 'Later'])
+  );
+  // app.askForSignIn();
 
   // firebase.database().ref('users/test').set({
-  //   name: 'sam',
+  //   name: 'samsruti',
   //   location: {
   //     latitude: '14.214',
   //     longitude: '43.214',
@@ -219,163 +187,135 @@ function welcomeNormalUser (app) {
   // });
 }
 
-function askPermission (app) {
-  let namePermission = app.SupportedPermissions.NAME;
-  let precisePermission = app.SupportedPermissions.DEVICE_PRECISE_LOCATION;
-  let coarsePermission = app.SupportedPermissions.DEVICE_COARSE_LOCATION;
-  app.askForPermissions('To address you by name and know your location',
-    [namePermission, precisePermission, coarsePermission]);
-}
+const startAppYes = app => {
+  app.setContext('display-features');
 
-function permissionGranted (app) {
-  if (app.isPermissionGranted()) {
-    let displayName = app.getUserName().displayName;
-    let userId = '1';
-    let latitude = app.getDeviceLocation().coordinates.latitude;
-    let longitude = app.getDeviceLocation().coordinates.longitude;
-    firebase.database().ref('users/' + userId).set({
-      name: displayName,
-      location: {
-        latitude: latitude,
-        longitude: longitude
-
-      }
-    });
-        //     city: app.getDeviceLocation().city,
-        // address:app.getDeviceLocation().address,
-        // zipCode:app.getDeviceLocation().zipCode
-
-    app.ask(app.buildRichResponse()
-         .addSimpleResponse({speech: 'At which time should you use to write your personal diary?',
-           displayText: 'At which time should you use to write your personal diary?'})
-         .addSuggestions(['8.00pm', '9.00pm', '10.00pm', '11.00pm', '12 midnight'])
-         );
-  } else {
-    app.tell('Ok Bye');
-  }
-}
-
-function timePreferenceSet (app) {
-  var writingTime = app.getContextArgument('ask-time-preferences', 'writingTime');
-  // const number = app.getContextArgument(OUT_CONTEXT, NUMBER_ARG);
-  app.setContext('start_app-followup');
-  console.log('CONSOLE:\r' + writingTime.value);
-  app.ask(app.buildRichResponse()
-    .addSimpleResponse({speech: 'Now you can be relax. \
-      I am there for you to remind your memories and the best moments.',
-      displayText: 'I remembered your preference. I can help you to write your personal diary,\
-      help you to remind your memories and many more. \n Are you to ready to start?'})
-    .addSuggestions(
-      ['Yes', 'No', 'Later', 'Bye'])
-    );
-// .addSuggestionLink('Suggestion Link', 'https://assistant.google.com/')
-}
-
-function startAppYes (app) {
-  console.log(app.getSignInStatus());
-  let accessToken = app.getUser().accessToken;
   app.askWithCarousel(app.buildRichResponse()
-  .addSimpleResponse(' Alright Logged In! Here are a few things that I can do for you. What you want me to do?')
-  .addSuggestions(
-    ['Recall Memories', 'Create Memories', 'Set Reminder']),
-    // Build a carousel
-    app.buildCarousel()
-    // Add the first item to the carousel
-    .addItems(app.buildOptionItem(ReadDiary.READ_DIARY,
-      ReadDiary.SYNONYMS)
-    .setTitle(ReadDiary.TITLE)
-    .setDescription(ReadDiary.DESCRIPTION)
-    .setImage(ReadDiary.IMAGE_URL, ReadDiary.TITLE))
-    // Add the second item to the carousel
-    .addItems(app.buildOptionItem(WriteDiary.WRITE_DIARY,
-      WriteDiary.SYNONYMS)
-    .setTitle(WriteDiary.TITLE)
-    .setDescription(WriteDiary.DESCRIPTION)
-    .setImage(WriteDiary.IMAGE_URL, WriteDiary.TITLE))
-    // Add third item to the carousel
-    .addItems(app.buildOptionItem(SetReminder.SET_REMINDER,
-      SetReminder.SYNONYMS)
-    .setTitle(SetReminder.TITLE)
-    .setDescription(SetReminder.DESCRIPTION)
-    .setImage(SetReminder.IMAGE_URL, SetReminder.TITLE))
+      .addSimpleResponse('Alright! Here are a few things that I can do for you. What you want me to do?')
+      .addSuggestions(
+        ['Create', 'Read', 'Reminder']),
+      app.buildCarousel()
+        // Add the first item to the carousel
+        .addItems(app.buildOptionItem(ReadDiary.SELECTION_KEY,
+          ReadDiary.SYNONYMS)
+          .setTitle(ReadDiary.TITLE)
+          .setDescription(ReadDiary.DESCRIPTION)
+          .setImage(ReadDiary.IMAGE_URL, 'Read Diary'))
+        // Add the second item to the carousel
+        .addItems(app.buildOptionItem(WriteDiary.SELECTION_KEY,
+          WriteDiary.SYNONYMS)
+          .setTitle(WriteDiary.TITLE)
+          .setDescription(WriteDiary.DESCRIPTION)
+          .setImage(WriteDiary.IMAGE_URL, 'Write Diary')
+        )
+        // Add third item to the carousel
+        .addItems(app.buildOptionItem(SetReminder.SELECTION_KEY,
+          SetReminder.SYNONYMS)
+          .setTitle(SetReminder.TITLE)
+          .setDescription(SetReminder.DESCRIPTION)
+          .setImage(SetReminder.IMAGE_URL, 'Set Reminder')
+        )
     );
+};
 
-}
+const startAppNo = app => {
+  app.ask('App will not start');
+};
 
-function startAppNo (app) {
-  app.ask('App not gonna start');
-}
+const startAppLater = app => {
+  app.ask('App will start later');
+};
 
-function startAppLater (app) {
-  app.ask('App not gonna start now. But later');
-}
-
-function itemSelectedStartApp (app) {
+const itemFeaturesSelected = app => {
   const param = app.getSelectedOption();
   console.log('USER SELECTED: ' + param);
   if (!param) {
     app.ask('You did not select any item from the list or carousel');
-  } else if (param === ReadDiary.READ_DIARY) {
-    app.ask('Read Diary Selected');
-  } else if (param === WriteDiary.WRITE_DIARY) {
-    app.ask('What title do you want to give for today?\
-     Something like: “First Day in College” or like “Dragon Die”');
-    app.setContext("title-process");
-    // Todo: dynamic responses for the titles.
-  } else if (param === SetReminder.SET_REMINDER) {
-    app.ask('Set Reminder selected');
+  } else if (param === ReadDiary.SELECTION_KEY) {
+    app.ask('Read Diary selected');
+  } else if (param === WriteDiary.SELECTION_KEY) {
+    app.setContext('amazing-things-happened');
+    app.ask('So, tell me about the AMAZING_THINGS_HAPPENED_TODAY');
+  } else if (param === SetReminder.SELECTION_KEY) {
+    app.ask('You selected the set reminder');
   } else {
     app.ask('You selected an unknown item from the list or carousel');
   }
+};
+
+const amazingThingsHappenedToday = app => {
+  let input = app.getRawInput();
+  app.setContext('worst-things-happened');
+  app.ask(input + ': Tell me about your worst things.');
+};
+
+const worstThingsHappenedToday = app => {
+  let input = app.getRawInput();
+  app.setContext('improve-today');
+  app.ask(input + ': Tell me how you could have improved today?');
+};
+
+const howTodayCouldBeImproved = app => {
+  let input = app.getRawInput();
+  app.setContext('give-title');
+  app.ask(input + ': What title you want to give today?');
 }
 
-function getTitleOfTheDay (app) {
- 
-  // No third party module required: https is part of the Node.js API
-  
-  const url =
-    "https://maps.googleapis.com/maps/api/geocode/json?address=Florence";
-  https.get(url, res => {
-    res.setEncoding("utf8");
-    let body = "";
-    res.on("data", data => {
-      body += data;
-    });
-    res.on("end", () => {
-      body = JSON.parse(body);
-      console.log(
-        `City: ${body.results[0].formatted_address} -`,
-        `Latitude: ${body.results[0].geometry.location.lat} -`,
-        `Longitude: ${body.results[0].geometry.location.lng}`
-      );
-    });
+const journalTitle = app => {
+  app.setContext('grateful-user');
+  let input = app.getRawInput();
+  unirest.post('https://text-sentiment.p.mashape.com/analyze')
+  .header('X-Mashape-Key', 'uHMpPM4GdimshW0JO07N2Y6IUb4Wp1mYQFujsnceW7QwhcMbpp')
+  .header('Content-Type', 'application/x-www-form-urlencoded')
+  .header('Accept', 'application/json')
+  .send('text=' + input)
+  .end(function (result) {
+    let listVal = JSON.parse(result.body);
+    var overallSentiment = textSentimentAnalysis(listVal);
+    let response = 'Title:' + input;
+    if (overallSentiment == 0) {
+      response = response + 'Neutral statements';
+    } else if (overallSentiment == 1) {
+      response =response + 'Positive statements';
+    } else if (overallSentiment == -1) {
+      response = response + 'Negative statements';
+    }
+
+    app.ask("Title Sentiment: "+ response + ". What are you grateful for?");
   });
-  app.ask('COLORS');
+}
+
+const gratefulFor = app => {
+  let input = app.getRawInput();
+  app.ask(input + ': Tell me how you could have improved today?');
 }
 
 /** @type {Map<string, function(ApiAiApp): void>} */
 const actionMap = new Map();
-actionMap.set(ActionsNewUser.UNRECOGNIZED_DEEP_LINK, unhandledDeepLinks);
+actionMap.set(Actions.UNRECOGNIZED_DEEP_LINK, unhandledDeepLinks);
+
 let newUser = false;
 
 if (newUser) {
-  actionMap.set(ActionsNewUser.ACTION_WELCOME, welcomeFirstTimeUser);
-  actionMap.set(ActionsNewUser.REQUEST_NAME_PERMISSION, askPermission);
-  actionMap.set(ActionsNewUser.PERMISSION_GRANTED, permissionGranted);
-  actionMap.set(ActionsNewUser.ASK_PREFERENCE_TIME_TRUE, timePreferenceSet);
-  actionMap.set(ActionsNormalUser.START_APP_YES, startApp);
-
-  	// actionMap.set(ActionsNewUser.ASK_TO_START_DIARY_NOW, askToStartDiaryNow); // are you gonna write today? or we can start from tomorrow
-  	// startDiary(app);
+  actionMap.set(Actions.ACTION_WELCOME, welcomeFirstTimeUser);
+  // actionMap.set(ActionsNewUser.REQUEST_NAME_PERMISSION, askPermission);
+  // actionMap.set(ActionsNewUser.PERMISSION_GRANTED, permissionGranted);
+  // actionMap.set(ActionsNewUser.ASK_PREFERENCE_TIME_TRUE, timePreferenceSet);
+  // actionMap.set(ActionsNormalUser.START_APP_YES, startAppYes);
+  // actionMap.set(ActionsNormalUser.START_APP_NO, startAppNo);
+  // actionMap.set(ActionsNormalUser.START_APP_LATER, startAppLater);
 } else {
-  actionMap.set(ActionsNewUser.ACTION_WELCOME, welcomeNormalUser);
-  // console.log("ActionMap:"+actionMap);
+  actionMap.set(Actions.ACTION_WELCOME, welcomeNormalUser);
+  actionMap.set(Actions.FEATURES_ITEM_SELECTED, itemFeaturesSelected);
+  actionMap.set(Actions.APP_START_YES, startAppYes);
+  actionMap.set(Actions.APP_START_NO, startAppNo);
+  actionMap.set(Actions.APP_START_LATER, startAppLater);
+  actionMap.set(Actions.AMAZING_THINGS_HAPPENED_TODAY, amazingThingsHappenedToday);
+  actionMap.set(Actions.WORST_THINGS_HAPPENED_TODAY, worstThingsHappenedToday);
+  actionMap.set(Actions.IMPROVE_TODAY, howTodayCouldBeImproved);
+  actionMap.set(Actions.TITLE_OF_THE_DAY, journalTitle);
+  actionMap.set(Actions.USER_GRATEFUL, gratefulFor);
 
-  actionMap.set(ActionsNormalUser.START_APP_YES, startAppYes);
-  actionMap.set(ActionsNormalUser.START_APP_NO, startAppNo);
-  actionMap.set(ActionsNormalUser.START_APP_LATER, startAppLater);
-  actionMap.set(ActionsNormalUser.GET_TITLE_OF_THE_DAY, getTitleOfTheDay);
-  actionMap.set(ActionsNormalUser.START_APP_YES_FEATURE_SELECT, itemSelectedStartApp);
 }
 
 /**
@@ -384,15 +324,12 @@ if (newUser) {
  * @param {Response} response An Express like Response object to send back data
  */
 const helloDiary = functions.https.onRequest((request, response) => {
- 	const app = new ApiAiApp({
- 		request,
- 		response
- 	});
- 	console.log(`Request headers: ${JSON.stringify(request.headers)}`);
- 	console.log(`Request body: ${JSON.stringify(request.body)}`);
- 	app.handleRequest(actionMap);
+  const app = new ApiAiApp({ request, response });
+  console.log(`Request headers: ${JSON.stringify(request.headers)}`);
+  console.log(`Request body: ${JSON.stringify(request.body)}`);
+  app.handleRequest(actionMap);
 });
 
 module.exports = {
- 	helloDiary
+  helloDiary
 };
