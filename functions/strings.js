@@ -17,37 +17,72 @@
  * They are written in JavaScript for easier organization of the data and in case functions are used
  */
 
-/* eslint quote-props: ["error", "always"] */
-/* eslint quotes: ["error", "double"] */
+ /* eslint quote-props: ["error", "always"] */
+ /* eslint quotes: ["error", "double"] */
 
 // eslint-disable-next-line quotes
 const deepFreeze = require('deep-freeze');
 
-const categories = {
-  "headquarters": {
-    "category": "headquarters",
-    "suggestion": "Headquarters",
-    "facts": [
-      "Google's headquarters is in Mountain View, California.",
-      "Google has over 30 cafeterias in its main campus.",
-      "Google has over 10 fitness facilities in its main campus."
+const writeContents = {
+
+  "amazingThings": [
+    "What are best things to have happened today?",
+    "How about sharing the memories of the day would you like to around carry with you?",
+    "You can tell me about what made you happy and proud today.",
+    "What are the things about today would you not change ever?",
+    "Why don't you start with the activities that you enjoyed the most today?"
+  ],
+
+  "worstThings": [
+    "What was the worst thing to have happened today?",
+    "Something that you wish had not happened"
+  ],
+
+  "improvement":
+  {
+    "question": [
+      "If you could, what would you change about today?",
+      "How could you have made today a better day?"
     ],
-    "factPrefix": "Okay, here's a headquarters fact."
+    "responses": [
+      "I am sorry about this. But I can make you strong by asking you these questions"
+    ]
   },
-  "history": {
-    "category": "history",
-    "suggestion": "History",
-    "facts": [
-      "Google was founded in 1998.",
-      "Google was founded by Larry Page and Sergey Brin.",
-      "Google went public in 2004.",
-      "Google has more than 70 offices in more than 40 countries."
-    ],
-    "factPrefix": "Sure, here's a history fact."
-  }
+
+  "gratefulFor": {
+    "question": ["How about telling me something you are thankful about today?",
+      "Did you have any personal achievement of the day. Let it be a small thing."],
+    "responses": [
+      "You have written in amazing way. I Hope you will take care about these from tomorrow."
+    ]
+  },
+
+  "title": [
+    "To summarize all, why don't you set a title for the day? What would it be?",
+    "You can give me a title which would you like to use to describe today.",
+    "Can you tell me a title which would like to associate today with?"
+  ],
+
+  "showImages": [
+    "Let’s take a look at how your day went",
+    "Here are a few moments from your day."
+  ],
+
+  "askToIncludeImages": ["Do you want to add these photos to your journal?"],
+
+  "askMoreContent": [
+    "Do you have anything else to add to your journal?",
+    "I feel like you got something that you want to your journal? Do you?"
+  ],
+  "moreContent": [
+    "What else was special about today?",
+    "Any more memorable or special moments of the day?"
+  ]
 };
 
 const general = {
+  "welcome": ["Hello, I am your personal journal. I can help you with writing entries, recalling your memories and reminding you with updates."
+  ],
   "heardItAll": "Actually it looks like you heard it all. Thanks for listening!",
   /** Used to give responses for no inputs */
   "noInputs": [
@@ -63,11 +98,11 @@ const general = {
     ]
   },
   "linkOut": "Learn more",
-  "unhandled": "Welcome to Facts about Google! I'd really rather not talk about %s. Wouldn't you rather talk about Google? I can tell you about Google's history or its headquarters. Which do you want to hear about?"
+  "unhandled": "Hello, I am your personal journal. I can help you with writing entries, recalling your memories and reminding you with updates."
 };
 
 // Use deepFreeze to make the constant objects immutable so they are not unintentionally modified
 module.exports = deepFreeze({
-  categories,
+  writeContents,
   general
 });
