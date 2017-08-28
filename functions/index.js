@@ -1,4 +1,5 @@
-  // Copyright 2016, Google, Inc.
+  // Copyright 2016, Hello Diary, Inc.
+  // By: Samsruti Dash (sam.sipun@gmail.com)
   // Licensed under the Apache License, Version 2.0 (the 'License');
   // you may not use this file except in compliance with the License.
   // You may obtain a copy of the License at
@@ -128,9 +129,9 @@
    * @template T
    * @param {Array<T>} array The array to get a random value from
    */
-  const getRandomValue = array => array[Math.floor(Math.random() * array.length)];
+   const getRandomValue = array => array[Math.floor(Math.random() * array.length)];
 
-  const unhandledDeepLinks = app => {
+   const unhandledDeepLinks = app => {
     /** @type {string} */
     const rawInput = app.getRawInput();
     const response = sprintf(strings.general.unhandled, rawInput);
@@ -471,8 +472,8 @@
             .addSimpleResponse({speech: 'Your password is correct',
               displayText: 'Your password is correct ' + emoji.emoji[5].char})
             .addSimpleResponse({speech: response,
-              displayText: 'You can try these command to refresh your memories'})
-            .addSuggestions(['tell my best memories', 'worst moments from yesterday'])
+              displayText: 'You can try these command to refresh your memories.'})
+            .addSuggestions(['tell my best memories', 'worst moments from yesterday', 'yesterday memories'])
             );
         } else {
           app.setContext('check-password');
@@ -505,7 +506,7 @@
         //     firebase.database().ref().child('users').child(userid).child('profile').child('chancesLeft').set(chancesLeft);
         //   });
         // }
-    });
+      });
   };
 
   const itemFeaturesSelected = app => {
@@ -553,7 +554,7 @@
       }
     // } else if (param === SetReminder.SELECTION_KEY) {
     //   app.ask('You selected the set reminder');
-    } else if (param === QuotesOfTheDay.SELECTION_KEY) {
+  } else if (param === QuotesOfTheDay.SELECTION_KEY) {
       // app.ask('You selected the QuotesOfTheDay');
 
       unirest.post('https://andruxnet-random-famous-quotes.p.mashape.com/?cat=famous&count=1')
@@ -612,9 +613,9 @@
     //   );}
     // }
     // else{
-    storeInforFirebase(app, 'amazingMoments', param);
-    app.setContext('worst-things-happened');
-    app.ask(app.buildRichResponse()
+      storeInforFirebase(app, 'amazingMoments', param);
+      app.setContext('worst-things-happened');
+      app.ask(app.buildRichResponse()
         .addSimpleResponse("That's really great " + emoji.emoji[9].char)
         .addSimpleResponse(response)
         );
@@ -810,9 +811,9 @@
     //       }
     //     } else {
           // app.setContext('images-today');
-    app.setContext('add-more-content-followup');
-    const response = getRandomValue(strings.writeContents.askMoreContent);
-    app.ask(app.buildRichResponse()
+          app.setContext('add-more-content-followup');
+          const response = getRandomValue(strings.writeContents.askMoreContent);
+          app.ask(app.buildRichResponse()
             .addSimpleResponse({ speech: 'I loved the title ',
               displayText: 'I loved the title ' + emoji.emoji[13].char
             })
@@ -903,9 +904,12 @@
         var date = journalDate.value.date;
         console.log('date in recall:' + date);
         console.log('referenceNode: ' + referenceNode);
-        var db = firebase.database().ref();
-        
+        var db = firebase.database().ref();        
         var responseRef = db.child(referenceNode).child(userid).child(date);
+        response.catch(error => {
+          console.log('an error happenned')
+
+        });
         var responseUrl = responseRef + firebaseKeys.extensionREST + firebaseKeys.authKey;
         console.log('URL:');
         console.log(responseUrl);
@@ -941,10 +945,10 @@
   actionMap.set(Actions.USER_GRATEFUL, gratefulFor);
   actionMap.set(Actions.TITLE_OF_THE_DAY, journalTitle);
       // actionMap.set(Actions.TODAY_IMAGES_ITEM_SELECTED, todayImagesSelected);
-  actionMap.set(Actions.READ_ENTRIES, readEntries);
-  actionMap.set(Actions.ADD_MORE_CONTENT_YES, addMoreContentYes);
-  actionMap.set(Actions.ADD_MORE_CONTENT_NO, addMoreContentNo);
-  actionMap.set(Actions.ADD_MORE_CONTENT, addMoreContent);
+      actionMap.set(Actions.READ_ENTRIES, readEntries);
+      actionMap.set(Actions.ADD_MORE_CONTENT_YES, addMoreContentYes);
+      actionMap.set(Actions.ADD_MORE_CONTENT_NO, addMoreContentNo);
+      actionMap.set(Actions.ADD_MORE_CONTENT, addMoreContent);
 
   // actionMap.set("actions.intent.SIGN_IN",signInApp);
 
@@ -953,13 +957,13 @@
    * @param {Request} request An Express like Request object of the HTTP request
    * @param {Response} response An Express like Response object to send back data
    */
-  const helloDiary = functions.https.onRequest((request, response) => {
+   const helloDiary = functions.https.onRequest((request, response) => {
     const app = new ApiAiApp({ request, response });
     console.log(`Request headers: ${JSON.stringify(request.headers)}`);
     console.log(`Request body: ${JSON.stringify(request.body)}`);
     app.handleRequest(actionMap);
   });
 
-  module.exports = {
+   module.exports = {
     helloDiary
   };
