@@ -23,10 +23,20 @@
 // eslint-disable-next-line quotes
 const deepFreeze = require('deep-freeze');
 
+const readContents = {
+  "password": {
+    "create": ["For security purpose, please set a pin. Like 1234 or 54223 or anything"],
+    "incorrect": [],
+    "correct": [],
+    "tryAgain": [],
+    "askForPassword": []
+  }
+};
+
 const writeContents = {
 
   "amazingThings": [
-    "What are best things to have happened today?",
+    "What are the best things to have happened today?",
     "How about sharing the memories of the day would you like to around carry with you?",
     "You can tell me about what made you happy and proud today.",
     "What are the things about today would you not change ever?",
@@ -77,12 +87,17 @@ const writeContents = {
   "moreContent": [
     "What else was special about today?",
     "Any more memorable or special moments of the day?"
-  ]
+  ],
+  "weeklyChallenges": [ "Tell me about what are challenges for the next week?"
+  ],
+  "recap": ["Let’s have a recap of your day "]
 };
 
 const general = {
-  "welcome": ["Hello, I am your personal journal. I can help you with writing entries, recalling your memories and reminding you with updates."
+  "welcome": [
+    "I am your personal journal assistant. I can help you with writing entries, recalling your old memories and reminding you with updates."
   ],
+  "whatICanDo": ["Alright! Here are a few things that I can do for you."],
   "heardItAll": "Actually it looks like you heard it all. Thanks for listening!",
   /** Used to give responses for no inputs */
   "noInputs": [
@@ -104,5 +119,6 @@ const general = {
 // Use deepFreeze to make the constant objects immutable so they are not unintentionally modified
 module.exports = deepFreeze({
   writeContents,
+  readContents,
   general
 });

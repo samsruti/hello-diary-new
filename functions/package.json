@@ -30,6 +30,7 @@
     "request-promise": "^4.2.1",
     "sprintf-js": "^1.1.1",
     "sync-request": "^4.1.0",
+    "thoughts": "^2.1.0",
     "unirest": "^0.5.1"
   },
   "devDependencies": {

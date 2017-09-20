@@ -15,25 +15,28 @@
 
   const { ApiAiApp } = require('actions-on-google');
   const functions = require('firebase-functions');
-  const { sprintf } = require('sprintf-js');
-
+  // const { sprintf } = require('sprintf-js');
+  const lib = require('thoughts');
   const strings = require('./strings');
   const emoji = require('./emoji');
   const request = require('request');
-  const unirest = require('unirest');
+  // const unirest = require('unirest');
 
   const firebase = require('firebase-admin');
 
   firebase.initializeApp(functions.config().firebase);
 
-  const Picasa = require('picasa');
-  const picasa = new Picasa();
+  // const Picasa = require('picasa');
+  // const picasa = new Picasa();
 
   process.env.DEBUG = 'actions-on-google:*';
   const firebaseKeys = {
     authKey: 'auth=zkkcbw9Ak3owBXExELNu1poKtuyFEA9OGi95HGCW',
     extensionREST: '.json?'
   };
+
+  // const USERINFO_URL = 'https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=';
+  // const PEOPLE_API = 'https://people.googleapis.com/v1/people/me?personFields=birthdays&access_token=';
 
   /** API.AI Actions {@link https://api.ai/docs/actions-and-parameters#actions} */
   const Actions = {
@@ -49,6 +52,8 @@
     IMPROVE_TODAY: 'improve.today',
     TITLE_OF_THE_DAY: 'day.title',
     USER_GRATEFUL: 'user.grateful',
+    CREATE_PASSWORD: 'set.password',
+    CHECK_PASSWORD: 'check.password',
     TODAY_IMAGES_ITEM_SELECTED: 'images.today',
     USER_WISHES: 'user.wishes',
     ADD_MORE_CONTENT: 'more.content.journal',
@@ -58,27 +63,32 @@
     CONFESSION_CONFIRMATION_YES: 'user.confession.yes',
     CONFESSION_CONFIRMATION_NO: 'user.confession.no',
     READ_ENTRIES: 'read.entries',
+    READ_QUOTES: 'read.quotes',
     HELP: 'user.help',
+    START_APP_EXIT_YES: 'startAppNo.exit.yes',
+    START_APP_EXIT_NO: 'startAppNo.exit.no',
+    AMAZING_THINGS_HAPPENED_ASK_RECALL: 'readentries.write',
+    IN_DIALOG: 'dialog.fallback',
     QUIT_ACTION: 'quit.app'
   };
   /** API.AI Parameters {@link https://api.ai/docs/actions-and-parameters#parameters} */
-  const Parameters = {
-    CATEGORY: 'category',
-    AMAZING_MOMENTS: '',
-    SAD_MOMENTS: '',
-    GRATEFULFOR: '',
-    TITLE: '',
-    DAILY_IMPROVEMENT: ''
-  };
+  // const Parameters = {
+  //   CATEGORY: 'category',
+  //   AMAZING_MOMENTS: '',
+  //   SAD_MOMENTS: '',
+  //   GRATEFULFOR: '',
+  //   TITLE: '',
+  //   DAILY_IMPROVEMENT: ''
+  // };
   /** API.AI Contexts {@link https://api.ai/docs/contexts} */
-  const Contexts = {
+  // const Contexts = {
 
-  };
-  /** API.AI Context Lifespans {@link https://api.ai/docs/contexts#lifespan} */
-  const Lifespans = {
-    DEFAULT: 5,
-    END: 0
-  };
+  // };
+  // * API.AI Context Lifespans {@link https://api.ai/docs/contexts#lifespan}
+  // const Lifespans = {
+  //   DEFAULT: 5,
+  //   END: 0
+  // };
 
   const WriteDiary = {
     SELECTION_KEY: 'WRITE_DIARY',
@@ -128,22 +138,23 @@
    */
   const getRandomValue = array => array[Math.floor(Math.random() * array.length)];
 
-  const unhandledDeepLinks = app => {
-    /** @type {string} */
-    const rawInput = app.getRawInput();
-    const response = sprintf(strings.general.unhandled, rawInput);
-    /** @type {boolean} */
-    const screenOutput = app.hasSurfaceCapability(app.SurfaceCapabilities.SCREEN_OUTPUT);
-    if (!screenOutput) {
-      return app.ask(response, strings.general.noInputs);
-    }
-    const suggestions = Object.values(strings.categories).map(category => category.suggestion);
-    const richResponse = app.buildRichResponse()
-    .addSimpleResponse(response)
-    .addSuggestions(suggestions);
+  // const unhandledDeepLinks = app => {
+  //   /** @type {string} */
+  //   const rawInput = app.getRawInput();
 
-    app.ask(richResponse, strings.general.noInputs);
-  };
+  //   const response = sprintf(strings.general.unhandled, rawInput);
+  //   /** @type {boolean} */
+  //   const screenOutput = app.hasSurfaceCapability(app.SurfaceCapabilities.SCREEN_OUTPUT);
+  //   if (!screenOutput) {
+  //     return app.ask(response, strings.general.noInputs);
+  //   }
+  //   const suggestions = Object.values(strings.categories).map(category => category.suggestion);
+  //   const richResponse = app.buildRichResponse()
+  //   .addSimpleResponse(response)
+  //   .addSuggestions(suggestions);
+
+  //   app.ask(richResponse, strings.general.noInputs);
+  // };
 
   function storeInforFirebase (app, referenceNode, input) {
     let accessToken = app.getUser().accessToken;
@@ -203,13 +214,14 @@
     this.localDate = date.toLocaleDateString();
     this.day = date.getUTCDay();
     this.localTime = date.toLocaleTimeString();
+    this.ISOString = date.toISOString();
   }
 
-  function timeconvert (timestamp) {
-    timestamp = parseInt(timestamp);
-    var date = new Date(timestamp);
-    return date.toLocaleDateString();
-  }
+  // function timeconvert (timestamp) {
+  //   timestamp = parseInt(timestamp);
+  //   var date = new Date(timestamp);
+  //   return date.toLocaleDateString();
+  // }
 
   function getJSON (url, callback) {
     request({
@@ -268,6 +280,19 @@
     });
   }
 
+  function writeTimestamp (accessToken) {
+    var url = 'https://www.googleapis.com/plus/v1/people/me?access_token=' + accessToken;
+    getJSON(url, function (user) {
+      var id = user.id;
+      var today = new Date();
+      var TodayDetails = TodayDateDetails(today);
+      var todayDate = getTodayDate();
+      firebase.database().ref('users/' + id + '/profile/' + todayDate + '/dayDetails/').set({
+        timestamp: TodayDetails.ISOString
+      });
+    });
+  }
+
   function writeUserBasicInfo (accessToken) {
     var url = 'https://www.googleapis.com/plus/v1/people/me?access_token=' + accessToken;
     getJSON(url, function (user) {
@@ -288,63 +313,98 @@
     });
   }
 
-  // function signInApp(app){
-  //   app.askForSignIn();
-  // }
+  function updateUserPassword (accessToken, password) {
+    var url = 'https://www.googleapis.com/plus/v1/people/me?access_token=' + accessToken;
+    getJSON(url, function (user) {
+      var id = user.id;
+      firebase.database().ref('users/' + id + '/profile/password/').set(password);
+    });
+  }
 
   function welcomeNormalUser (app) {
     var ref = firebase.database().ref().child('users');
     var refURL = ref + firebaseKeys.extensionREST + firebaseKeys.authKey;
     getJSON(refURL, function (val) {
       if (val != null) {
-    app.setContext('start_app-followup');
-    let accessToken = app.getUser().accessToken;
+        app.setContext('start_app-followup');
+        let accessToken = app.getUser().accessToken;
 
-    var url = 'https://www.googleapis.com/plus/v1/people/me?access_token=' + accessToken;
-    getJSON(url, function (user) {
-      var name = user.name.givenName;
-      if (app.hasSurfaceCapability(app.SurfaceCapabilities.SCREEN_OUTPUT)) {
-        app.ask(app.buildRichResponse()
+        var url = 'https://www.googleapis.com/plus/v1/people/me?access_token=' + accessToken;
+        getJSON(url, function (user) {
+          var name = user.name.givenName;
+          if (app.hasSurfaceCapability(app.SurfaceCapabilities.SCREEN_OUTPUT)) {
+            app.ask(app.buildRichResponse()
               .addSimpleResponse({speech: 'Hi ' + name + '. I am your personal journal assistant. Are you ready to start?',
                 displayText: 'Hi ' + name + ' ' + emoji.emoji[5].char + '. I am your personal journal assistant. Are you ready to start? '
               })
               .addSuggestions(['Yes', 'No', 'Later'])
               );
-      } else {
-        app.ask('Hi ' + name + '. I am your personal journal assistant. Are you ready to start?');
-      }
-    });
+          } else {
+            app.ask('Hi ' + name + '. I am your personal journal assistant. Are you ready to start?');
+          }
+        });
       } else {
         let accessToken = app.getUser().accessToken;
-        writeUserBasicInfo(accessToken);
-        writeUserBirthday(accessToken);
         url = 'https://www.googleapis.com/plus/v1/people/me?access_token=' + accessToken;
         getJSON(url, function (user) {
           var name = user.name.givenName;
+          app.setContext('create-password');
+          writeUserBasicInfo(accessToken);
+          writeUserBirthday(accessToken);
 
           if (app.hasSurfaceCapability(app.SurfaceCapabilities.SCREEN_OUTPUT)) {
+            var speechResponse = 'Hi ' + name + '. I am your personal journal assistant.' + ' Before we proceed, please set a pin for this app. Say something like "set my pin as yourpin" or "keep my pin as 1234"';
+            var display = 'Hi ' + name + '. I am your personal journal assistant.' + ' Before we proceed, please set a pin for this app.';
             app.ask(app.buildRichResponse()
-              .addSimpleResponse('Hi ' + name + '. I am your personal journal assistant. I think this is the first time you are here. ')
+              .addSimpleResponse({speech: speechResponse,
+                displayText: display})
+              .addSuggestions(['my pin would be 1010', 'keep my pin as 1234'])
               );
           } else {
-            app.ask('Hi ' + name + '. I am your personal journal assistant.. I think this is the first time you are here. ');
+            app.ask('Hi ' + name + '. I am your personal journal assistant.' + ' Before we start, say a pin for this app.' + ' Try saying, "keep my pin as 1234" or "my pin would be 4545"');
           }
         });
       }
     });
   }
 
+  const createPassword = app => {
+    let context = app.getContexts('create-password');
+    let accessToken = app.getUser().accessToken;
+
+    var response;
+    console.log('COnTExt:');
+    console.log(context);
+    if (context[0].name === 'create_password_dialog_params_password') {
+      response = getRandomValue(strings.readContents.password.create);
+      app.ask(app.buildRichResponse()
+        .addSimpleResponse(response)
+        );
+    } else {
+      var password = context[0].parameters.password;
+      app.setContext('start_app-followup');
+      response = 'Your pin is now ' + password;
+      let accessToken = app.getUser().accessToken;
+      updateUserPassword(accessToken, password);
+      app.ask(app.buildRichResponse()
+        .addSimpleResponse(response)
+        .addSimpleResponse('Are you ready to open your journal to read or write?')
+        .addSuggestions(['Yes', 'No', 'Later'])
+        );
+    }
+  };
+
   const startAppYes = app => {
-    
     // let accessToken = app.getUser().accessToken;
     // writeUserBasicInfo(accessToken);
     // writeUserBirthday(accessToken);
 
     app.askWithCarousel(app.buildRichResponse()
-      .addSimpleResponse('Alright! Here are a few things that I can do for you.')
+      .addSimpleResponse({speech: 'I can help you with creating memories, refresh your old memories and can be your best friend',
+        displayText: getRandomValue(strings.general.whatICanDo)})
       .addSimpleResponse('What you want me to do?')
       .addSuggestions(
-        ['Create Memories', 'Read Memories', 'Quotes Of TheDay']),
+        ['Create Memories', 'Read Memories', 'Quotes Of The Day']),
       app.buildCarousel()
           // Add the first item to the carousel
           .addItems(app.buildOptionItem(WriteDiary.SELECTION_KEY,
@@ -372,12 +432,10 @@
           .setDescription(QuotesOfTheDay.DESCRIPTION)
           .setImage(QuotesOfTheDay.IMAGE_URL, 'Quotes Of The Day'))
           );
-
-
   };
 
   const startAppNo = app => {
-    // app.setContext('add-more-content');
+    app.setContext('start_app-no-followup');
     app.ask(app.buildRichResponse()
       .addSimpleResponse('That is totally fine ' + emoji.emoji[5].char + ' Feel free to share whenver you feel like. I will there for you always.')
       .addSimpleResponse('So do yo want to exit this app?')
@@ -385,6 +443,20 @@
       );
   };
 
+  const startAppNoExitYes = app => {
+    app.setContext('start_app-no-followup');
+    app.tell(app.buildRichResponse()
+      .addSimpleResponse('Bye' + emoji.emoji[5].char + ' See you tomorrow. Take care.')
+      );
+  };
+
+  const startAppNoExitNo = app => {
+    var response = getRandomValue(strings.writeContents.amazingThings);
+    app.setContext('amazing-things-happened');
+    app.ask(app.buildRichResponse()
+          .addSimpleResponse(response)
+          );
+  };
   // const todayImagesSelected = app => {
   //   const param = app.getSelectedOption();
   //   console.log('USER SELECTED: ' + param);
@@ -404,69 +476,211 @@
   const startAppLater = app => {
     app.tell(app.buildRichResponse()
       .addSimpleResponse('So you want to start this later? Sure, You can invoke me anytime anywhere')
-      .addSimpleResponse('I will there for you always. See you nex time. Bye ' + emoji.emoji[5].char)
+      .addSimpleResponse('I will there for you always. See you next time. Bye ' + emoji.emoji[5].char)
       );
   };
 
-  const itemFeaturesSelected = app => {
-    const param = app.getSelectedOption();
-    var response = getRandomValue(strings.writeContents.amazingThings);
+  const checkPassword = app => {
+    app.setContext('amazing-things-happened', 0);
+    app.setContext('read-quotes-followup', 0);
 
+    var response;
+    console.log('APP DETAILS:');
+    console.log(app.getContexts());
+    const pin = app.getContext('read-entries').parameters['password.original'];
+    let accessToken = app.getUser().accessToken;
+    var url = 'https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=' + accessToken;
+    getJSON(url, function (userData) {
+      var userid = userData.id;
+      var passDBUrl = 'https://hello-diary-app.firebaseio.com/users/' + userid + '/profile/password' + firebaseKeys.extensionREST + firebaseKeys.authKey;
+      getJSON(passDBUrl, function (password) {
+        var passwordInput = pin;
+        if (pin instanceof Array) {
+          passwordInput = pin.join('');
+        } else {
+          passwordInput = pin;
+        }
+        console.log('password input: ' + passwordInput);
+        console.log('password db: ' + password);
+
+        if (passwordInput === password) {
+          app.setContext('read-entries');
+          response = 'You can try like "tell me my best memories from last week or tell my best memories worst moments from yesterday';
+          app.ask(app.buildRichResponse()
+            .addSimpleResponse({speech: 'Your password is correct',
+              displayText: 'Your password is correct ' + emoji.emoji[5].char})
+            .addSimpleResponse({speech: response,
+              displayText: 'You can try these command to refresh your memories.'})
+            .addSuggestions(['tell my best memories', 'worst moments from yesterday', 'yesterday memories'])
+            );
+        } else {
+          app.setContext('check-password');
+          response = 'You have entered an incorrect pin.';
+          app.ask(app.buildRichResponse()
+            .addSimpleResponse(response)
+            .addSimpleResponse('Please enter your password again. Please provide the pin in a compound way instead of number by number')
+            );
+        }
+      });
+      // else {
+        //   var passDBUrl = 'https://hello-diary-app.firebaseio.com/users/' + userid + '/profile/password/chancesLeft' + firebaseKeys.extensionREST + firebaseKeys.authKey;
+        //   getJSON(passDBUrl, function (chances) {
+        //     var chancesLeft = chances;
+        //     if (chances == 0) {
+        //       response = 'I am sorry. You have tried a lot of times. Please try again later.';
+        //       app.tell(app.buildRichResponse()
+        //         .addSimpleResponse({speech: response,
+        //           displayText: 'See you next time :)'})
+        //         );
+        //     } else {
+        //       app.setContext('check-password');
+        //       response = 'You have entered an incorrect password. Please say it again';
+        //       app.ask(app.buildRichResponse()
+        //         .addSimpleResponse(response)
+        //         .addSimpleResponse('You have more ' + chancesLeft + 'chances left.')
+        //         );
+        //     }
+        //     chancesLeft = chancesLeft - 1;
+        //     firebase.database().ref().child('users').child(userid).child('profile').child('chancesLeft').set(chancesLeft);
+        //   });
+        // }
+    });
+  };
+
+  const itemFeaturesSelected = app => {
+    app.setContext('create-password', 0);
+    const param = app.getSelectedOption();
+    var response;
     console.log('USER SELECTED: ' + param);
     if (!param) {
       app.ask('You did not select any item.');
     } else if (param === ReadDiary.SELECTION_KEY) {
-      app.setContext('read-entries');
-      response = 'You can try like "tell me my best memories from last week" or "tell me the good things i said last week". This would be fun ' + emoji.emoji[5].char;
+      app.setContext('check-password');
+      response = 'Before we proceed, please enter your security pin for verification. Say something like my pin is yourpass';
       app.ask(app.buildRichResponse()
-      .addSimpleResponse({speech:response,
-        displayText:"You can try these command to recall your memories"})
-        .addSuggestions(['tell my best memories', 'worst moments'])
-      );
-      app.ask(response);
-    } else if (param === WriteDiary.SELECTION_KEY) {
-      app.setContext('amazing-things-happened');
-      app.ask(app.buildRichResponse()
-        .addSimpleResponse('Let’s have a recap of your day ' + emoji.emoji[12].char)
-        .addSimpleResponse(response)
+        .addSimpleResponse({speech: response,
+          displayText: 'Please enter your pin to proceed.'})
         );
+
+      // app.setContext('read-entries');
+      // response = 'You can try like "tell me my best memories from last week" or "tell me the good things i said last week". This would be fun ' + emoji.emoji[5].char;
+      // app.ask(app.buildRichResponse()
+      //   .addSimpleResponse({speech: response,
+      //     displayText: 'You can try these command to recall your memories'})
+      //   .addSuggestions(['tell my best memories', 'worst moments'])
+      //   );
+    } else if (param === WriteDiary.SELECTION_KEY) {
+      var todayDate = new Date();
+      let accessToken = app.getUser().accessToken;
+      writeTimestamp(accessToken);
+      var dayCount = todayDate.getDay();
+      if (dayCount === 0) {
+        response = 'Tell me about what are challenges for the next week?';
+        app.setContext('weekly-challenge');
+        app.ask(app.buildRichResponse()
+          .addSimpleResponse('Let’s start with weekly challenges first')
+          .addSimpleResponse(response)
+          );
+      } else {
+        response = getRandomValue(strings.writeContents.amazingThings);
+        app.setContext('amazing-things-happened');
+        app.ask(app.buildRichResponse()
+          .addSimpleResponse({ speech: 'Let’s have a recap of your day',
+            displayText: 'Let’s have a recap of your day ' + emoji.emoji[12].char
+          })
+          .addSimpleResponse(response)
+          );
+      }
     // } else if (param === SetReminder.SELECTION_KEY) {
     //   app.ask('You selected the set reminder');
     } else if (param === QuotesOfTheDay.SELECTION_KEY) {
-      // app.ask('You selected the QuotesOfTheDay');
-      app.setContext('item-selected');
-      app.setContext()
-      unirest.post('https://andruxnet-random-famous-quotes.p.mashape.com/?cat=famous&count=1')
-      .header('X-Mashape-Key', 'uHMpPM4GdimshW0JO07N2Y6IUb4Wp1mYQFujsnceW7QwhcMbpp')
-      .header('Content-Type', 'application/x-www-form-urlencoded')
-      .header('Accept', 'application/json')
-      .end(function (result) {
-        var data = result.body;
-        var quote = data.quote;
-        var author = data.author;
-        app.tell(app.buildRichResponse()
-                // Create a basic card and add it to the rich response
-
-                .addSimpleResponse('"' + quote + '"')
-                .addSimpleResponse('By ' + author)
-                );
-        // console.log(quote+author);
-      });
+      app.setContext('read-quotes-followup');
+      var random = lib.random();
+      console.log(random.thought);
+      console.log(random.author);
+      app.ask(app.buildRichResponse()
+        .addSimpleResponse('"' + random.thought + '"')
+        .addSimpleResponse('By ' + random.author)
+        .addSuggestions(['Another Quote', 'Bye'])
+        );
     } else {
       app.ask('You have selected an unknown item from the list or carousel');
     }
   };
 
-  const amazingThingsHappenedToday = app => {
-    let input = app.getRawInput();
-    const response = getRandomValue(strings.writeContents.worstThings);
+  const amazingThingsAskWrite = app => {
+    var todayDate = new Date();
+    var dayCount = todayDate.getDay();
+    var response = '';
+    if (dayCount === 0) {
+      response = 'Tell me about what are challenges for the next week?';
+      app.setContext('weekly-challenge');
+      app.ask(app.buildRichResponse()
+          .addSimpleResponse('Let’s start with weekly challenges first')
+          .addSimpleResponse(response)
+          );
+    } else {
+      response = getRandomValue(strings.writeContents.amazingThings);
+      app.setContext('amazing-things-happened');
+      app.ask(app.buildRichResponse()
+          .addSimpleResponse({ speech: 'Let’s have a recap of your day',
+            displayText: 'Let’s have a recap of your day ' + emoji.emoji[12].char
+          })
+          .addSimpleResponse(response)
+          );
+    }
+  };
 
-    storeInforFirebase(app, 'amazingMoments', input);
-    app.setContext('worst-things-happened');
+  const weeklyChallenge = app => {
+    let accessToken = app.getUser().accessToken;
+    writeTimestamp(accessToken);
+    app.setContext('amazing-things-happened');
+    const paramObj = app.getContextArgument('weekly-challenge', 'weekChallenge');
+    var param = paramObj.value;
+    var response = getRandomValue(strings.writeContents.amazingThings);
+    storeInforFirebase(app, 'weeklyChallenge', param);
     app.ask(app.buildRichResponse()
-      .addSimpleResponse("That's really great " + emoji.emoji[9].char)
+      .addSimpleResponse({ speech: 'Let’s have a recap of your day',
+        displayText: 'Let’s have a recap of your day ' + emoji.emoji[12].char
+      })
       .addSimpleResponse(response)
       );
+  };
+
+  // const lessContentPositive = app => {
+  //   const param = app.getContextArgument('amazing-things-happened', 'amazingMoments').value;
+  // };
+
+  // const lessContentNegative = app => {
+
+  // };
+
+  const amazingThingsHappenedToday = app => {
+    app.setContext('read-quotes-followup', 0);
+    app.setContext('check-password', 0);
+    // app.setContext("c-password",0);
+    app.setContext('read-quotes-followup', 0);
+    let accessToken = app.getUser().accessToken;
+    writeTimestamp(accessToken);
+    // let input = app.getRawInput();
+    const param = app.getContextArgument('amazing-things-happened', 'amazingMoments').value;
+    const response = getRandomValue(strings.writeContents.worstThings);
+    // var words = str.match(/\b\w+\b/g)
+    // if (words<5) {
+    //   app.setContext('less-content-followup');
+    //   app.ask(app.buildRichResponse()
+    //       .addSimpleResponse("You can share your memories in detailed manner. No issues :)")
+    //       .addSimpleResponse("I will listen to those")
+    //   );}
+    // }
+    // else{
+    storeInforFirebase(app, 'amazingMoments', param);
+    app.setContext('worst-things-happened');
+    app.ask(app.buildRichResponse()
+        .addSimpleResponse("That's really great " + emoji.emoji[9].char)
+        .addSimpleResponse(response)
+        );
+      // }
     // let accessToken = app.getUser().accessToken;
     // var url = 'https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=' + accessToken;
     // getJSON(url, function (userData) {
@@ -530,7 +744,7 @@
   };
 
   const journalTitle = app => {
-    let input = app.getRawInput();
+    // let input = app.getRawInput();
     const param = app.getContextArgument('give-title', 'title');
     storeInforFirebase(app, 'titleoftheday', param.value);
     // const responseShowImages = getRandomValue(strings.writeContents.showImages);
@@ -718,23 +932,25 @@
     app.tell(app.buildRichResponse()
       .addSimpleResponse('Thank you for your kind replies.')
       .addSimpleResponse('I hope to see you again at the same time and same place. Till then, Bye ' + emoji.emoji[5].char)
-      .addSuggestions(['See ya', 'Recall Memories', 'Read Quote of the Day', 'Bye'])
+      // .addSuggestions(['See ya', 'Recall Memories', 'Read Quote of the Day', 'Bye'])
       );
   };
 
   const readEntries = app => {
+    console.log('READ_ENTRIES CONTEXTS');
+    console.log(app.getContexts());
     const journalType = app.getContextArgument('read-entries', 'journalType');
     const journalDate = app.getContextArgument('read-entries', 'journalDate');
-    let contexts = app.getContexts('read-entries');
-    console.log('Context: ' + JSON.stringify(contexts));
-    if (contexts[0].name === 'read_entries_dialog_params_journaldate' || contexts[0].parameters.journalDate === '') {
+    let context = app.getContext('read-entries');
+    console.log('Context: ' + JSON.stringify(context));
+    if (context.parameters.journalDate === '') {
       app.ask(app.buildRichResponse()
         .addSimpleResponse({speech: 'To which date you want to go?',
           displayText: 'To which date you want to go?'})
         .addSuggestions(
-          ['yesterday', 'day before yesterday', 'last week', 'last date i wrote journal'])
+          ['yesterday', 'day before yesterday', 'last week'])
         );
-    } else if (contexts[0].parameters.journalType === '') {
+    } else if (context.parameters.journalType === '') {
       app.ask(app.buildRichResponse()
         .addSimpleResponse({speech: 'For which entries you want me to recall? Like happy moments \
           or sad moments or about your gratefulness or your confessions.',
@@ -747,6 +963,8 @@
       var url = 'https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=' + accessToken;
       getJSON(url, function (userData) {
         var userid = userData.id;
+        console.log('VALUE OF JOURNALTYPE:');
+        console.log(journalType);
         var referenceNode = journalType.value;
         var date = journalDate.value.date;
         console.log('date in recall:' + date);
@@ -754,38 +972,74 @@
         var db = firebase.database().ref();
         var responseRef = db.child(referenceNode).child(userid).child(date);
         var responseUrl = responseRef + firebaseKeys.extensionREST + firebaseKeys.authKey;
-        console.log("URL:");
-        console.log(responseUrl);
         getJSON(responseUrl, function (response) {
           console.log('response:' + response);
-          app.ask(app.buildRichResponse()
+          if (response != null) {
+            app.ask(app.buildRichResponse()
             .addSimpleResponse("Here's what I found")
             .addSimpleResponse(response)
             .addSuggestions(
-              ['Try More ', 'Tell me again', 'Tell about last week'])
+              ['recall a new one ', 'write memories', 'Bye'])
             );
+          } else {
+            app.ask(app.buildRichResponse()
+            .addSimpleResponse("I am sorry, you didn't mention any memories on this day.")
+            .addSuggestions(
+              ['recall a new one ', 'write memories', 'Bye'])
+            );
+          }
         });
       });
     }
   };
 
+  const readQuotes = app => {
+    app.setContext('read-quotes-followup');
+    var random = lib.random();
+    console.log(random.thought);
+    console.log(random.author);
+    app.ask(app.buildRichResponse()
+        .addSimpleResponse('"' + random.thought + '"')
+        .addSimpleResponse('By ' + random.author)
+        .addSuggestions(['Another Quote', 'Bye'])
+        );
+  };
+
+  const inDialogFallBack = app => {
+    app.ask(app.buildRichResponse()
+        .addSimpleResponse({
+          displayText: "Sorry, I didn't understand. I can help you with collecting your memories and recalling your memories.",
+          speech: "Sorry, I didn't understand. You can say like Recall my Memories or Create Memories or tell me today's quotes."
+        })
+        .addSuggestions(['Recall Memories', 'Create Memories', 'Quotes Of The Day'])
+        );
+  };
   /** @type {Map<string, function(ApiAiApp): void>} */
   const actionMap = new Map();
-  actionMap.set(Actions.UNRECOGNIZED_DEEP_LINK, unhandledDeepLinks);
+  // actionMap.set(Actions.UNRECOGNIZED_DEEP_LINK, unhandledDeepLinks);
 
   actionMap.set(Actions.ACTION_WELCOME, welcomeNormalUser);
+  actionMap.set(Actions.IN_DIALOG, inDialogFallBack);
+  actionMap.set(Actions.START_APP_EXIT_NO, startAppNoExitNo);
+  actionMap.set(Actions.START_APP_EXIT_YES, startAppNoExitYes);
+  actionMap.set(Actions.AMAZING_THINGS_HAPPENED_ASK_RECALL, amazingThingsAskWrite);
+
+  actionMap.set(Actions.CREATE_PASSWORD, createPassword);
+  actionMap.set(Actions.CHECK_PASSWORD, checkPassword);
   actionMap.set(Actions.FEATURES_ITEM_SELECTED, itemFeaturesSelected);
   actionMap.set(Actions.APP_START_YES, startAppYes);
   actionMap.set(Actions.HELP, startAppYes);
   actionMap.set(Actions.APP_START_NO, startAppNo);
   actionMap.set(Actions.APP_START_LATER, startAppLater);
+  actionMap.set(Actions.WEEKLY_CHALLENGE, weeklyChallenge);
   actionMap.set(Actions.AMAZING_THINGS_HAPPENED_TODAY, amazingThingsHappenedToday);
   actionMap.set(Actions.WORST_THINGS_HAPPENED_TODAY, worstThingsHappenedToday);
   actionMap.set(Actions.IMPROVE_TODAY, howTodayCouldBeImproved);
   actionMap.set(Actions.USER_GRATEFUL, gratefulFor);
   actionMap.set(Actions.TITLE_OF_THE_DAY, journalTitle);
-      // actionMap.set(Actions.TODAY_IMAGES_ITEM_SELECTED, todayImagesSelected);
+  // actionMap.set(Actions.TODAY_IMAGES_ITEM_SELECTED, todayImagesSelected);
   actionMap.set(Actions.READ_ENTRIES, readEntries);
+  actionMap.set(Actions.READ_QUOTES, readQuotes);
   actionMap.set(Actions.ADD_MORE_CONTENT_YES, addMoreContentYes);
   actionMap.set(Actions.ADD_MORE_CONTENT_NO, addMoreContentNo);
   actionMap.set(Actions.ADD_MORE_CONTENT, addMoreContent);
